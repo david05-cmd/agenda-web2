@@ -6,49 +6,49 @@
 
 require_once __DIR__ . '/conexion.php';
 
-function e(?string $valor): string {
+function e(?string $valor): string
+{
     return htmlspecialchars($valor ?? '', ENT_QUOTES, 'UTF-8');
 }
 
-// 1. Cargar las categorías dinámicas
-$resultado = $mysqli->query('SELECT id, nombre FROM categorias ORDER BY nombre');
+// 1. Cargar las categorías desde la base de datos
+$resultado  = $mysqli->query('SELECT id, nombre FROM categorias ORDER BY nombre');
 $categorias = $resultado->fetch_all(MYSQLI_ASSOC);
 $idsValidos = array_map('intval', array_column($categorias, 'id'));
 
-// 2. Determinar si estamos en MODO EDICIÓN o MODO CREACIÓN
-$idEditar = (int)($_GET['id'] ?? 0);
+// 2. ¿Estamos en MODO EDICIÓN (hay ?id=...) o en MODO CREACIÓN?
+$idEditar    = (int) ($_GET['id'] ?? 0);
 $modoEdicion = $idEditar > 0;
 
-// Variables por defecto (vacías para creación)
-$titulo = '';
-$fecha = '';
-$hora = '';
+// Valores por defecto (vacíos para crear)
+$titulo      = '';
+$fecha       = '';
+$hora        = '';
 $descripcion = '';
 $categoriaId = 0;
-$errores = [];
+$errores     = [];
 
-// 3. Si es MODO EDICIÓN y apenas entramos a la página (no hemos enviado el form)
+// 3. Modo edición y todavía no se envió el formulario: precargar datos
 if ($modoEdicion && $_SERVER['REQUEST_METHOD'] !== 'POST') {
-    $stmt = $mysqli->prepare("SELECT titulo, fecha, hora, categoria_id, descripcion FROM eventos WHERE id = ?");
-    $stmt->bind_param("i", $idEditar);
+    $stmt = $mysqli->prepare('SELECT titulo, fecha, hora, categoria_id, descripcion FROM eventos WHERE id = ?');
+    $stmt->bind_param('i', $idEditar);
     $stmt->execute();
-    $evento_db = $stmt->get_result()->fetch_assoc();
+    $eventoDb = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
-    if ($evento_db) {
-        // Precargar los datos en el formulario
-        $titulo = $evento_db['titulo'];
-        $fecha = $evento_db['fecha'];
-        $hora = $evento_db['hora'] ? substr($evento_db['hora'], 0, 5) : '';
-        $categoriaId = (int)$evento_db['categoria_id'];
-        $descripcion = $evento_db['descripcion'];
+    if ($eventoDb) {
+        $titulo      = $eventoDb['titulo'];
+        $fecha       = $eventoDb['fecha'];
+        $hora        = $eventoDb['hora'] ? substr($eventoDb['hora'], 0, 5) : '';
+        $categoriaId = (int) $eventoDb['categoria_id'];
+        $descripcion = $eventoDb['descripcion'] ?? '';
     } else {
-        // Si nos pasan un ID falso/inexistente en la URL, pasamos a modo crear
-        $modoEdicion = false; 
+        // ID inexistente en la URL: pasamos a modo crear
+        $modoEdicion = false;
     }
 }
 
-// 4. Validar y Guardar/Actualizar cuando se envía el formulario
+// 4. Validar y guardar / actualizar al enviar el formulario
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $titulo      = trim($_POST['titulo']      ?? '');
     $fecha       = trim($_POST['fecha']       ?? '');
@@ -72,38 +72,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!in_array($categoriaId, $idsValidos, true)) {
         $errores['categoria_id'] = 'Elige una categoría válida.';
     }
-    
+
     if (mb_strlen($descripcion) > 500) {
         $errores['descripcion'] = 'Máximo 500 caracteres para la descripción.';
     }
 
-    // 5. Guardar en Base de Datos
+    // 5. Guardar en la base de datos
     if (empty($errores)) {
         $horaBD = $hora === '' ? null : $hora;
         $descBD = $descripcion === '' ? null : $descripcion;
 
         if ($modoEdicion) {
-            // Lógica para ACTUALIZAR
-            $sql = 'UPDATE eventos SET titulo=?, fecha=?, hora=?, categoria_id=?, descripcion=? WHERE id=?';
+            $sql = 'UPDATE eventos SET titulo = ?, fecha = ?, hora = ?, categoria_id = ?, descripcion = ? WHERE id = ?';
             $stmt = $mysqli->prepare($sql);
             $stmt->bind_param('sssisi', $titulo, $fecha, $horaBD, $categoriaId, $descBD, $idEditar);
             $urlRedireccion = 'index.php?editado=1';
         } else {
-            // Lógica para CREAR NUEVO
             $sql = 'INSERT INTO eventos (titulo, fecha, hora, categoria_id, descripcion) VALUES (?, ?, ?, ?, ?)';
             $stmt = $mysqli->prepare($sql);
             $stmt->bind_param('sssis', $titulo, $fecha, $horaBD, $categoriaId, $descBD);
             $urlRedireccion = 'index.php?ok=1';
         }
-        
+
         if ($stmt->execute()) {
             $stmt->close();
             $mysqli->close();
             header('Location: ' . $urlRedireccion);
             exit;
-        } else {
-            $errores['general'] = "Hubo un error al guardar en la base de datos.";
         }
+
+        $errores['general'] = 'Hubo un error al guardar en la base de datos.';
     }
 }
 ?>
@@ -116,8 +114,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/estilos.css">
-    
-    <!-- El título de la pestaña de internet cambia según el modo -->
+
+    <!-- El título de la pestaña cambia según el modo -->
     <title><?= $modoEdicion ? 'Editar evento' : 'Nuevo evento' ?> · AgendaWeb</title>
 </head>
 <body>
@@ -129,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <!-- El título de la tarjeta cambia según el modo -->
     <h1 class="card__title"><?= $modoEdicion ? 'Editar evento' : 'Nuevo evento' ?></h1>
-    <p class="card__meta">AgendaWeb de David Moreno Orozco</p>
+    <p class="card__meta">AgendaWeb</p>
 
     <form method="post" action="">
         <?php if (isset($errores['general'])): ?>
@@ -138,7 +136,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <div class="form-group">
             <label class="form-label" for="titulo">Título</label>
-            <input type="text" class="form-input <?= isset($errores['titulo']) ? 'is-invalid' : '' ?>" name="titulo" id="titulo" value="<?= e($titulo) ?>" required>
+            <input type="text"
+                   class="form-input <?= isset($errores['titulo']) ? 'is-invalid' : '' ?>"
+                   name="titulo" id="titulo" value="<?= e($titulo) ?>" required>
             <?php if (isset($errores['titulo'])): ?>
                 <p class="form-error"><?= e($errores['titulo']) ?></p>
             <?php endif; ?>
@@ -147,7 +147,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="form-row">
             <div class="form-group">
                 <label class="form-label" for="fecha">Fecha</label>
-                <input type="date" class="form-input <?= isset($errores['fecha']) ? 'is-invalid' : '' ?>" name="fecha" id="fecha" value="<?= e($fecha) ?>" required>
+                <input type="date"
+                       class="form-input <?= isset($errores['fecha']) ? 'is-invalid' : '' ?>"
+                       name="fecha" id="fecha" value="<?= e($fecha) ?>" required>
                 <?php if (isset($errores['fecha'])): ?>
                     <p class="form-error"><?= e($errores['fecha']) ?></p>
                 <?php endif; ?>
@@ -160,7 +162,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <div class="form-group">
             <label class="form-label" for="categoria_id">Categoría</label>
-            <select class="form-select <?= isset($errores['categoria_id']) ? 'is-invalid' : '' ?>" name="categoria_id" id="categoria_id" required>
+            <select class="form-select <?= isset($errores['categoria_id']) ? 'is-invalid' : '' ?>"
+                    name="categoria_id" id="categoria_id" required>
                 <option value="">— Elige una —</option>
                 <?php foreach ($categorias as $cat): ?>
                     <option value="<?= (int) $cat['id'] ?>" <?= $categoriaId === (int) $cat['id'] ? 'selected' : '' ?>>
@@ -175,7 +178,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <div class="form-group">
             <label class="form-label" for="descripcion">Descripción (opcional)</label>
-            <textarea name="descripcion" id="descripcion" rows="3" class="form-textarea <?= isset($errores['descripcion']) ? 'is-invalid' : '' ?>"><?= e($descripcion) ?></textarea>
+            <textarea name="descripcion" id="descripcion" rows="3"
+                      class="form-textarea <?= isset($errores['descripcion']) ? 'is-invalid' : '' ?>"><?= e($descripcion) ?></textarea>
             <?php if (isset($errores['descripcion'])): ?>
                 <p class="form-error"><?= e($errores['descripcion']) ?></p>
             <?php endif; ?>

@@ -1,5 +1,11 @@
--- db.sql · esquema desde CERO (si ya tienes datos, usa migracion_p5.sql)
+-- db.sql · Crea la base de datos y las tablas desde cero
+-- Ejecútalo completo en MySQL Workbench (o en el phpMyAdmin de DomCloud)
 
+CREATE DATABASE IF NOT EXISTS agenda
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+USE agenda;
 
 CREATE TABLE IF NOT EXISTS categorias (
   id     INT AUTO_INCREMENT PRIMARY KEY,
@@ -7,9 +13,9 @@ CREATE TABLE IF NOT EXISTS categorias (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 INSERT INTO categorias (id, nombre) VALUES
-  (1, 'Trabajo'), 
-  (2, 'Personal'), 
-  (3, 'Estudio'), 
+  (1, 'Trabajo'),
+  (2, 'Personal'),
+  (3, 'Estudio'),
   (4, 'Ocio / Deporte')
 ON DUPLICATE KEY UPDATE nombre = VALUES(nombre);
 

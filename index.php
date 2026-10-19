@@ -1,42 +1,45 @@
 <?php
 /* ════════════════════════════════════════════════════════
    index.php · Página principal
-   Lectura, Borrado y botones de Edición (P5)
+   Lista de eventos, resumen por categoría, Editar y Borrar
    ════════════════════════════════════════════════════════ */
 
 require_once __DIR__ . '/conexion.php';
-
-// --- Lógica para borrar un evento ---
-if (isset($_GET['borrar'])) {
-    $idBorrar = (int)$_GET['borrar'];
-    $stmt = $mysqli->prepare('DELETE FROM eventos WHERE id = ?');
-    $stmt->bind_param('i', $idBorrar);
-    if ($stmt->execute()) {
-        header('Location: index.php?borrado=1');
-        exit;
-    }
-}
 
 function e(?string $valor): string
 {
     return htmlspecialchars($valor ?? '', ENT_QUOTES, 'UTF-8');
 }
 
-$guardado = isset($_GET['ok']);
-$borrado = isset($_GET['borrado']);
-$editado = isset($_GET['editado']);
+// --- Borrar un evento (cada tarjeta envía un formulario POST) ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['borrar'])) {
+    $idBorrar = (int) $_POST['borrar'];
 
-// 1. Obtener la lista de eventos mediante JOIN
+    $stmt = $mysqli->prepare('DELETE FROM eventos WHERE id = ?');
+    $stmt->bind_param('i', $idBorrar);
+    $stmt->execute();
+    $stmt->close();
+    $mysqli->close();
+
+    header('Location: index.php?borrado=1');
+    exit;
+}
+
+// Mensajes que llegan por la URL después de guardar, editar o borrar
+$guardado = isset($_GET['ok']);
+$borrado  = isset($_GET['borrado']);
+$editado  = isset($_GET['editado']);
+
+// 1. Lista de eventos con el nombre de su categoría (JOIN)
 $resultado = $mysqli->query(
-    'SELECT e.id, e.titulo, e.fecha, e.hora, e.descripcion,
-            c.nombre AS categoria
+    'SELECT e.id, e.titulo, e.fecha, e.hora, e.descripcion, c.nombre AS categoria
        FROM eventos e
        JOIN categorias c ON c.id = e.categoria_id
       ORDER BY e.fecha, e.hora'
 );
 $eventos = $resultado->fetch_all(MYSQLI_ASSOC);
 
-// 2. Obtener el conteo resumen por categoría
+// 2. Conteo de eventos por categoría (incluye las categorías vacías)
 $resumen = $mysqli->query(
     'SELECT c.nombre, COUNT(e.id) AS total
        FROM categorias c
@@ -66,7 +69,7 @@ $mysqli->close();
     </nav>
 
     <h1 class="card__title">Mis eventos</h1>
-    <p class="card__meta">AgendaWeb de David Moreno Orozco</p>
+    <p class="card__meta">AgendaWeb</p>
 
     <!-- Resumen de conteo por categoría -->
     <p class="resumen">
@@ -86,7 +89,7 @@ $mysqli->close();
 
     <!-- Lista de eventos -->
     <?php if (empty($eventos)): ?>
-        <p style="text-align: center; color: var(--color-texto-suave); margin: 40px 0;">
+        <p style="text-align: center; color: var(--text-soft); margin: 40px 0;">
             No tienes eventos registrados aún. 📝
         </p>
     <?php else: ?>
@@ -95,24 +98,31 @@ $mysqli->close();
                 <li class="evento-item">
                     <div class="evento-titulo"><?= e($evento['titulo']) ?></div>
                     <div class="evento-detalles">
-                        <span>📅 <?= e($evento['fecha']) ?> <?= $evento['hora'] ? '🕒 ' . e(substr($evento['hora'], 0, 5)) : '' ?></span>
+                        <span>📅 <?= e($evento['fecha']) ?>
+                            <?= $evento['hora'] ? '🕒 ' . e(substr($evento['hora'], 0, 5)) : '' ?></span>
                         <span class="categoria-tag">🏷️ <?= e($evento['categoria']) ?></span>
                     </div>
                     <?php if ($evento['descripcion']): ?>
-                        <p style="font-size: 0.85rem; color: var(--color-texto-suave); margin: 8px 0 0;"><?= e($evento['descripcion']) ?></p>
+                        <p style="font-size: 0.85rem; color: var(--text-soft); margin: 8px 0 0;"><?= e($evento['descripcion']) ?></p>
                     <?php endif; ?>
-                    
-                    <!-- Botones de Acción con confirmación -->
+
+                    <!-- Botones de acción con confirmación -->
                     <div class="evento-acciones">
-                        <!-- El botón Editar ahora manda a registrar.php pasándole el ID -->
-                        <a href="registrar.php?id=<?= $evento['id'] ?>" class="btn-small btn-edit" onclick="return confirm('¿Estás seguro de que deseas editar este evento?');">✏️ Editar</a>
-                        <a href="index.php?borrar=<?= $evento['id'] ?>" class="btn-small btn-delete" onclick="return confirm('¿Estás seguro de que deseas eliminar este evento permanentemente?');">🗑️ Borrar</a>
+                        <a href="registrar.php?id=<?= (int) $evento['id'] ?>"
+                           class="btn-small btn-edit"
+                           onclick="return confirm('¿Estás seguro de que deseas editar este evento?');">✏️ Editar</a>
+
+                        <form method="post" action="index.php" style="margin: 0;"
+                              onsubmit="return confirm('¿Estás seguro de que deseas eliminar este evento permanentemente?');">
+                            <input type="hidden" name="borrar" value="<?= (int) $evento['id'] ?>">
+                            <button type="submit" class="btn-small btn-delete">🗑️ Borrar</button>
+                        </form>
                     </div>
                 </li>
             <?php endforeach; ?>
         </ul>
     <?php endif; ?>
-    
+
     <div style="margin-top: 24px;">
         <a href="registrar.php" class="btn-primary" style="display: block; text-align: center;">+ Nuevo evento</a>
     </div>
