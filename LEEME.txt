@@ -2,13 +2,21 @@ KIT DE ARRANQUE · AgendaWeb · Rescate P2-P3
 ==========================================
 
 Esta carpeta va en:   tu carpeta de proyectos (ej. Documentos\agenda-web\)
+
+Antes de probarla:
+  1. Inicia el servicio MySQL.
+  2. Ejecuta db.sql en MySQL Workbench para crear la base "agenda" y sus tablas.
+  3. Si no existe conexion.php, copia conexion.ejemplo.php con ese nombre.
+  4. Configura en conexion.php el servidor, usuario y contraseña de MySQL.
+
 Para probarla:        en la terminal, DENTRO de agenda-web:  php -S localhost:8000
-Se abre en:           http://localhost:8000/registrar.php
+Se abre en:           http://localhost:8000/index.php
 
 Archivos:
   registrar.php ........ formulario + procesamiento (TU trabajo: los TODO)
   index.php ............ página principal (ya está completa)
-  conexion.ejemplo.php . plantilla de conexión (cópiala como conexion.php)
+  conexion.php ......... credenciales locales (no se sube a GitHub)
+  conexion.ejemplo.php . plantilla de conexión
   db.sql ............... crea la base "agenda" y la tabla "eventos"
   css/estilos.css ...... estilos listos: tú solo cambias el bloque MARCA
   .gitignore ........... evita subir conexion.php a GitHub

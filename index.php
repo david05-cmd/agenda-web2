@@ -1,10 +1,21 @@
 <?php
 /* ════════════════════════════════════════════════════════
    index.php · Página principal
-   Lectura de eventos usando JOIN y resumen GROUP BY (P5)
+   Lectura, Borrado y botones de Edición (P5)
    ════════════════════════════════════════════════════════ */
 
-require_once 'conexion.php';
+require_once __DIR__ . '/conexion.php';
+
+// --- Lógica para borrar un evento ---
+if (isset($_GET['borrar'])) {
+    $idBorrar = (int)$_GET['borrar'];
+    $stmt = $mysqli->prepare('DELETE FROM eventos WHERE id = ?');
+    $stmt->bind_param('i', $idBorrar);
+    if ($stmt->execute()) {
+        header('Location: index.php?borrado=1');
+        exit;
+    }
+}
 
 function e(?string $valor): string
 {
@@ -12,6 +23,8 @@ function e(?string $valor): string
 }
 
 $guardado = isset($_GET['ok']);
+$borrado = isset($_GET['borrado']);
+$editado = isset($_GET['editado']);
 
 // 1. Obtener la lista de eventos mediante JOIN
 $resultado = $mysqli->query(
@@ -47,6 +60,11 @@ $mysqli->close();
 </head>
 <body>
 <div class="card tarjeta-ancha">
+    <nav class="page-tabs" aria-label="Navegación principal">
+        <a class="page-tabs__link is-active" href="index.php" aria-current="page">Ver eventos</a>
+        <a class="page-tabs__link" href="registrar.php">Registrar evento</a>
+    </nav>
+
     <h1 class="card__title">Mis eventos</h1>
     <p class="card__meta">AgendaWeb de David Moreno Orozco</p>
 
@@ -57,10 +75,16 @@ $mysqli->close();
         <?php endforeach; ?>
     </p>
 
+    <!-- Alertas de éxito -->
     <?php if ($guardado): ?>
         <div class="alert alert--ok" role="status">✅ Evento guardado correctamente.</div>
+    <?php elseif ($borrado): ?>
+        <div class="alert alert--ok" role="status">🗑️ Evento eliminado permanentemente.</div>
+    <?php elseif ($editado): ?>
+        <div class="alert alert--ok" role="status">✏️ Evento actualizado correctamente.</div>
     <?php endif; ?>
 
+    <!-- Lista de eventos -->
     <?php if (empty($eventos)): ?>
         <p style="text-align: center; color: var(--color-texto-suave); margin: 40px 0;">
             No tienes eventos registrados aún. 📝
@@ -77,6 +101,13 @@ $mysqli->close();
                     <?php if ($evento['descripcion']): ?>
                         <p style="font-size: 0.85rem; color: var(--color-texto-suave); margin: 8px 0 0;"><?= e($evento['descripcion']) ?></p>
                     <?php endif; ?>
+                    
+                    <!-- Botones de Acción con confirmación -->
+                    <div class="evento-acciones">
+                        <!-- El botón Editar ahora manda a registrar.php pasándole el ID -->
+                        <a href="registrar.php?id=<?= $evento['id'] ?>" class="btn-small btn-edit" onclick="return confirm('¿Estás seguro de que deseas editar este evento?');">✏️ Editar</a>
+                        <a href="index.php?borrar=<?= $evento['id'] ?>" class="btn-small btn-delete" onclick="return confirm('¿Estás seguro de que deseas eliminar este evento permanentemente?');">🗑️ Borrar</a>
+                    </div>
                 </li>
             <?php endforeach; ?>
         </ul>

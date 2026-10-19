@@ -5,13 +5,14 @@ USE agenda;
 CREATE TABLE IF NOT EXISTS categorias (
   id     INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(50) NOT NULL UNIQUE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 INSERT INTO categorias (id, nombre) VALUES
   (1, 'Trabajo'), 
   (2, 'Personal'), 
   (3, 'Estudio'), 
-  (4, 'Ocio / Deporte');
+  (4, 'Ocio / Deporte')
+ON DUPLICATE KEY UPDATE nombre = VALUES(nombre);
 
 CREATE TABLE IF NOT EXISTS eventos (
   id           INT AUTO_INCREMENT PRIMARY KEY,
@@ -24,4 +25,4 @@ CREATE TABLE IF NOT EXISTS eventos (
   CONSTRAINT fk_eventos_categoria
     FOREIGN KEY (categoria_id) REFERENCES categorias(id)
     ON DELETE RESTRICT
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

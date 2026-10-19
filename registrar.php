@@ -1,24 +1,25 @@
 <?php
 /* ════════════════════════════════════════════════════════
    registrar.php · AgendaWeb
-   Categorías dinámicas desde la BD (P5)
+   Formulario multipropósito: Crear (INSERT) y Editar (UPDATE)
    ════════════════════════════════════════════════════════ */
 
-require 'conexion.php';
+require_once __DIR__ . '/conexion.php';
 
-function e(?string $valor): string
-{
+function e(?string $valor): string {
     return htmlspecialchars($valor ?? '', ENT_QUOTES, 'UTF-8');
 }
 
-// Obtener categorías para el <select> y validación
-$resultado  = $mysqli->query('SELECT id, nombre FROM categorias ORDER BY nombre');
+// 1. Cargar las categorías dinámicas
+$resultado = $mysqli->query('SELECT id, nombre FROM categorias ORDER BY nombre');
 $categorias = $resultado->fetch_all(MYSQLI_ASSOC);
-
-// Crear lista blanca dinámica: [1, 2, 3, 4]
 $idsValidos = array_map('intval', array_column($categorias, 'id'));
 
-// Variables por defecto
+// 2. Determinar si estamos en MODO EDICIÓN o MODO CREACIÓN
+$idEditar = (int)($_GET['id'] ?? 0);
+$modoEdicion = $idEditar > 0;
+
+// Variables por defecto (vacías para creación)
 $titulo = '';
 $fecha = '';
 $hora = '';
@@ -26,6 +27,28 @@ $descripcion = '';
 $categoriaId = 0;
 $errores = [];
 
+// 3. Si es MODO EDICIÓN y apenas entramos a la página (no hemos enviado el form)
+if ($modoEdicion && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+    $stmt = $mysqli->prepare("SELECT titulo, fecha, hora, categoria_id, descripcion FROM eventos WHERE id = ?");
+    $stmt->bind_param("i", $idEditar);
+    $stmt->execute();
+    $evento_db = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if ($evento_db) {
+        // Precargar los datos en el formulario
+        $titulo = $evento_db['titulo'];
+        $fecha = $evento_db['fecha'];
+        $hora = $evento_db['hora'] ? substr($evento_db['hora'], 0, 5) : '';
+        $categoriaId = (int)$evento_db['categoria_id'];
+        $descripcion = $evento_db['descripcion'];
+    } else {
+        // Si nos pasan un ID falso/inexistente en la URL, pasamos a modo crear
+        $modoEdicion = false; 
+    }
+}
+
+// 4. Validar y Guardar/Actualizar cuando se envía el formulario
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $titulo      = trim($_POST['titulo']      ?? '');
     $fecha       = trim($_POST['fecha']       ?? '');
@@ -54,21 +77,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errores['descripcion'] = 'Máximo 500 caracteres para la descripción.';
     }
 
-    // Guardado
+    // 5. Guardar en Base de Datos
     if (empty($errores)) {
-        $sql = 'INSERT INTO eventos (titulo, fecha, hora, categoria_id, descripcion) VALUES (?, ?, ?, ?, ?)';
-        $stmt = $mysqli->prepare($sql);
-
         $horaBD = $hora === '' ? null : $hora;
         $descBD = $descripcion === '' ? null : $descripcion;
 
-        // "sssis" -> string, string, string, integer, string
-        $stmt->bind_param('sssis', $titulo, $fecha, $horaBD, $categoriaId, $descBD);
+        if ($modoEdicion) {
+            // Lógica para ACTUALIZAR
+            $sql = 'UPDATE eventos SET titulo=?, fecha=?, hora=?, categoria_id=?, descripcion=? WHERE id=?';
+            $stmt = $mysqli->prepare($sql);
+            $stmt->bind_param('sssisi', $titulo, $fecha, $horaBD, $categoriaId, $descBD, $idEditar);
+            $urlRedireccion = 'index.php?editado=1';
+        } else {
+            // Lógica para CREAR NUEVO
+            $sql = 'INSERT INTO eventos (titulo, fecha, hora, categoria_id, descripcion) VALUES (?, ?, ?, ?, ?)';
+            $stmt = $mysqli->prepare($sql);
+            $stmt->bind_param('sssis', $titulo, $fecha, $horaBD, $categoriaId, $descBD);
+            $urlRedireccion = 'index.php?ok=1';
+        }
         
         if ($stmt->execute()) {
             $stmt->close();
             $mysqli->close();
-            header('Location: index.php?ok=1');
+            header('Location: ' . $urlRedireccion);
             exit;
         } else {
             $errores['general'] = "Hubo un error al guardar en la base de datos.";
@@ -85,11 +116,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/estilos.css">
-    <title>Nuevo evento · AgendaWeb</title>
+    
+    <!-- El título de la pestaña de internet cambia según el modo -->
+    <title><?= $modoEdicion ? 'Editar evento' : 'Nuevo evento' ?> · AgendaWeb</title>
 </head>
 <body>
 <div class="card">
-    <h1 class="card__title">Nuevo evento</h1>
+    <nav class="page-tabs" aria-label="Navegación principal">
+        <a class="page-tabs__link" href="index.php">Ver eventos</a>
+        <a class="page-tabs__link is-active" href="registrar.php" aria-current="page">Registrar evento</a>
+    </nav>
+
+    <!-- El título de la tarjeta cambia según el modo -->
+    <h1 class="card__title"><?= $modoEdicion ? 'Editar evento' : 'Nuevo evento' ?></h1>
     <p class="card__meta">AgendaWeb de David Moreno Orozco</p>
 
     <form method="post" action="">
@@ -142,7 +181,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
         </div>
 
-        <button type="submit" class="btn-primary">Guardar evento</button>
+        <!-- El texto del botón cambia según el modo -->
+        <button type="submit" class="btn-primary"><?= $modoEdicion ? 'Actualizar evento' : 'Guardar evento' ?></button>
     </form>
 
     <p class="card__link"><a href="index.php">Ver mis eventos</a></p>
