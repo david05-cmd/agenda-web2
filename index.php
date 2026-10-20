@@ -1,5 +1,5 @@
 <?php
-
+require 'conexion.php';
 
 // Avisos que llegan por la URL después de una redirección (patrón PRG)
 $avisos = [
