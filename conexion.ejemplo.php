@@ -1,24 +1,11 @@
 <?php
-/* ════════════════════════════════════════════════════════
-   conexion.ejemplo.php · PLANTILLA (esta sí se sube a GitHub)
-
-   1. Haz una COPIA de este archivo y llámala  conexion.php
-   2. En conexion.php cambia los datos por los reales:
-      - En tu computadora: usuario 'root' y la contraseña que elegiste
-        al instalar MySQL (la misma con la que entras a Workbench)
-      - En DomCloud: los datos que te da tu panel
-   3. conexion.php NUNCA se sube a GitHub (ver .gitignore)
-   ════════════════════════════════════════════════════════ */
-
-// Desde PHP 8.1, si algo falla, mysqli lanza una "excepción" que podemos atrapar
+// Plantilla de conexion.php (el archivo real NO se sube a GitHub: está en .gitignore).
+// Cópiala como conexion.php y pon tus datos de MySQL.
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
 try {
-    //                  servidor     usuario        contraseña        base de datos
-    $mysqli = new mysqli('localhost', 'root', '12345', 'agenda');
-    $mysqli->set_charset('utf8mb4');   // acentos y ñ correctos
+    $mysqli = new mysqli("localhost", "TU_USUARIO", "TU_CONTRASEÑA", "agenda");
+    $mysqli->set_charset("utf8mb4");
 } catch (mysqli_sql_exception $e) {
-    http_response_code(500);
-    // getMessage() te dice la causa exacta. En un sitio real se quita.
-    die('No se pudo conectar a la base de datos: ' . $e->getMessage());
+    die("No se pudo conectar a la base de datos.");
 }
