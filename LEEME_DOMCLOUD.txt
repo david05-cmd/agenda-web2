@@ -1,0 +1,30 @@
+AGENDAWEB — REVISIÓN Y PASOS PARA DOMCLOUD
+==========================================
+
+Qué encontré:
+1. index.php y registrar.php pasan la revisión de sintaxis PHP (php -l).
+2. conexion.php usa localhost/root/12345/agenda, que son datos de ejemplo/locales.
+   En DomCloud debes usar las credenciales y el nombre exactos de la base de datos
+   creados desde tu panel.
+3. .gitignore excluye conexion.php. Esto es correcto para no publicar credenciales,
+   PERO significa que si despliegas solamente desde GitHub, conexion.php no estará
+   en el servidor y PHP dará un error al ejecutar require_once.
+4. No se incluyó css/estilos.css en los archivos que recibí. Sin ese archivo, la
+   aplicación puede funcionar pero se verá sin el diseño esperado.
+
+PASOS:
+1. En DomCloud, crea una base de datos y un usuario MySQL desde el panel.
+2. Edita conexion.php y reemplaza los cuatro valores de ejemplo por los datos del panel.
+3. Sube conexion.php directamente al servidor (SFTP/administrador de archivos) en la
+   misma carpeta que index.php y registrar.php. No lo subas a GitHub.
+4. Importa db.sql en la base de datos que creaste. Si DomCloud no permite crear bases
+   de datos desde SQL, elimina las instrucciones CREATE DATABASE y USE del principio
+   de db.sql y ejecuta el resto dentro de la base de datos ya seleccionada.
+5. Sube también la carpeta css con estilos.css si la tienes en tu proyecto original.
+6. Abre la página. Si falla, copia el mensaje exacto y revisa los logs de PHP en DomCloud.
+
+Importante:
+- No puedo confirmar la causa exacta sin el mensaje de error que muestra DomCloud.
+- No publiques contraseñas de base de datos en el chat ni en GitHub.
+- El archivo conexion.php incluido aquí es una plantilla: no funcionará hasta que
+  reemplaces los valores CAMBIA_POR_... por tus datos reales.
