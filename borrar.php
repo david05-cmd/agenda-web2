@@ -1,6 +1,6 @@
 <?php
-// Solo se acepta POST: un enlace GET podría borrar datos al ser visitado
-// por un rastreador, un prefetch del navegador o un enlace malicioso.
+require __DIR__ . '/partes/sesion.php';
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: index.php');
     exit;
@@ -12,14 +12,13 @@ if ($id === false || $id < 1) {
     exit;
 }
 
-require 'conexion.php';
+require __DIR__ . '/conexion.php';
 
-$stmt = $mysqli->prepare('DELETE FROM eventos WHERE id = ?');
-$stmt->bind_param('i', $id);
+$stmt = $mysqli->prepare('DELETE FROM eventos WHERE id = ? AND usuario_id = ?');
+$stmt->bind_param('ii', $id, $usuarioId);
 $stmt->execute();
 $stmt->close();
 $mysqli->close();
 
-// PRG: el 303 obliga al navegador a pedir index.php con GET
 header('Location: index.php?eliminado=1', true, 303);
 exit;
