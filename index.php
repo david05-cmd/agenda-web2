@@ -2,6 +2,17 @@
 require __DIR__ . '/partes/sesion.php';
 require __DIR__ . '/conexion.php';
 
+// Paso 1: Leer parámetros de búsqueda y validar categoría
+$q = mb_substr(trim($_GET['q'] ?? ''), 0, 60);
+$categoriaId = (int) ($_GET['categoria'] ?? 0);
+
+$categorias = $mysqli->query('SELECT id, nombre FROM categorias ORDER BY nombre')->fetch_all(MYSQLI_ASSOC);
+$idsValidos = array_map('intval', array_column($categorias, 'id'));
+if (!in_array($categoriaId, $idsValidos, true)) {
+    $categoriaId = 0;
+}
+$buscando = ($q !== '' || $categoriaId !== 0);
+
 $avisos = [
     'ok'        => 'Evento guardado correctamente.',
     'editado'   => 'Evento actualizado correctamente.',
@@ -20,16 +31,32 @@ foreach ($avisos as $clave => $mensaje) {
     }
 }
 
-// Lista filtrada por usuario
-$stmt = $mysqli->prepare(
-    'SELECT e.id, e.titulo, e.fecha, e.hora, e.descripcion,
-            c.id AS categoria_id, c.nombre AS categoria
-       FROM eventos e
-       JOIN categorias c ON c.id = e.categoria_id
-      WHERE e.usuario_id = ?
-      ORDER BY e.fecha ASC, e.hora ASC'
-);
-$stmt->bind_param('i', $usuarioId);
+// Paso 2: Consulta preparada dinámica (siempre filtrada por usuario_id)
+$condiciones = ['e.usuario_id = ?'];
+$tipos       = 'i';
+$valores     = [$usuarioId];
+
+if ($q !== '') {
+    $patron = '%' . addcslashes($q, '%_\\') . '%';
+    $condiciones[] = '(e.titulo LIKE ? OR e.descripcion LIKE ?)';
+    $tipos       .= 'ss';
+    $valores[]    = $patron;
+    $valores[]    = $patron;
+}
+if ($categoriaId !== 0) {
+    $condiciones[] = 'e.categoria_id = ?';
+    $tipos       .= 'i';
+    $valores[]    = $categoriaId;
+}
+
+$sql = 'SELECT e.id, e.titulo, e.fecha, e.hora, e.descripcion,
+               c.id AS categoria_id, c.nombre AS categoria
+          FROM eventos e
+          JOIN categorias c ON c.id = e.categoria_id
+         WHERE ' . implode(' AND ', $condiciones) . '
+         ORDER BY e.fecha ASC, e.hora ASC';
+$stmt = $mysqli->prepare($sql);
+$stmt->bind_param($tipos, ...$valores);
 $stmt->execute();
 $eventos = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
@@ -83,7 +110,13 @@ $mysqli->close();
         <div class="page__header">
             <div>
                 <h1 class="page__title">Mis eventos</h1>
-                <p class="page__subtitle">Lista de compromisos y actividades registradas</p>
+                <p class="page__subtitle">
+                    <?php if ($buscando): ?>
+                        <?= count($eventos) ?> resultado<?= count($eventos) === 1 ? '' : 's' ?><?= $q !== '' ? ' para «' . e($q) . '»' : '' ?>
+                    <?php else: ?>
+                        <?= count($eventos) ?> eventos registrados
+                    <?php endif; ?>
+                </p>
             </div>
             <a href="registrar.php" class="btn-primary">+ Nuevo evento</a>
         </div>
@@ -96,7 +129,29 @@ $mysqli->close();
             <?php endforeach; ?>
         </p>
 
-        <?php if (empty($eventos)): ?>
+        <form class="buscador" method="get" action="index.php" role="search">
+            <input class="form-input" type="search" name="q" value="<?= e($q) ?>" maxlength="60"
+                   placeholder="Buscar en título o descripción…" aria-label="Buscar eventos">
+            <select class="form-select" name="categoria" aria-label="Filtrar por categoría">
+                <option value="0">Todas las categorías</option>
+                <?php foreach ($categorias as $cat): ?>
+                    <option value="<?= (int) $cat['id'] ?>" <?= $categoriaId === (int) $cat['id'] ? 'selected' : '' ?>>
+                        <?= e($cat['nombre']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <button type="submit" class="btn-primary">Buscar</button>
+            <?php if ($buscando): ?>
+                <a href="index.php" class="btn-secondary">Limpiar</a>
+            <?php endif; ?>
+        </form>
+
+        <?php if (empty($eventos) && $buscando): ?>
+            <div class="empty-state">
+                <p>Sin resultados para tu búsqueda.</p>
+                <a href="index.php" class="btn-secondary">Ver todos mis eventos</a>
+            </div>
+        <?php elseif (empty($eventos)): ?>
             <div class="empty-state">
                 <p>No tienes eventos registrados aún.</p>
                 <a href="registrar.php" class="btn-primary">+ Crear el primero</a>

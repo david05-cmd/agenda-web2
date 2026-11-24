@@ -368,6 +368,7 @@ label {
 }
 
 input[type="text"],
+input[type="search"],
 input[type="email"],
 input[type="password"],
 input[type="date"],
@@ -473,4 +474,23 @@ textarea.input-error {
     padding: 1.5rem;
     box-shadow: 4px 4px 0px var(--negro);
   }
+}
+
+/* 12. Buscador (Práctica 9)
+   ========================================================================== */
+.buscador {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 18px;
+}
+
+.buscador .form-input {
+  flex: 1 1 220px;
+  width: auto;
+}
+
+.buscador .form-select {
+  flex: 0 1 210px;
+  width: auto;
 }
